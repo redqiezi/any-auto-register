@@ -7,11 +7,11 @@ import time
 
 
 class AccountStatus(str, Enum):
-    REGISTERED   = "registered"
-    TRIAL        = "trial"
-    SUBSCRIBED   = "subscribed"
-    EXPIRED      = "expired"
-    INVALID      = "invalid"
+    REGISTERED = "registered"
+    TRIAL = "trial"
+    SUBSCRIBED = "subscribed"
+    EXPIRED = "expired"
+    INVALID = "invalid"
 
 
 @dataclass
@@ -23,26 +23,26 @@ class Account:
     region: str = ""
     token: str = ""
     status: AccountStatus = AccountStatus.REGISTERED
-    trial_end_time: int = 0       # unix timestamp
-    extra: dict = field(default_factory=dict)  # 平台自定义字段
+    trial_end_time: int = 0
+    extra: dict = field(default_factory=dict)
     created_at: int = field(default_factory=lambda: int(time.time()))
 
 
 @dataclass
 class RegisterConfig:
     """注册任务配置"""
-    executor_type: str = "protocol"   # protocol | headless | headed
-    captcha_solver: str = "yescaptcha"  # yescaptcha | 2captcha | manual
+    executor_type: str = "protocol"
+    captcha_solver: str = "yescaptcha"
     proxy: Optional[str] = None
+    user_data_dir: Optional[str] = None
+    browser_profile_id: Optional[int] = None
     extra: dict = field(default_factory=dict)
 
 
 class BasePlatform(ABC):
-    # 子类必须定义
     name: str = ""
     display_name: str = ""
     version: str = "1.0.0"
-    # 子类声明支持的执行器类型，未列出的自动降级到 protocol
     supported_executors: list = ["protocol", "headless", "headed"]
 
     def __init__(self, config: RegisterConfig = None):
@@ -74,6 +74,23 @@ class BasePlatform(ABC):
         """
         return []
 
+    def supports_wallet_login(self) -> bool:
+        """声明平台是否支持钱包登录。"""
+        return False
+
+    def get_supported_task_types(self) -> list[str]:
+        """返回平台支持的平台任务类型。"""
+        return []
+
+    def login_with_wallet(self, session, wallet, params: dict | None = None) -> dict:
+        """执行钱包登录，后续由 web3 平台按需实现。"""
+        raise NotImplementedError(f"平台 {self.name} 不支持钱包登录")
+
+    def run_task(self, session, wallet=None, account: Account = None,
+                 task_type: str = "", params: dict | None = None) -> dict:
+        """执行平台任务，后续可用于签到、mint、验证等场景。"""
+        raise NotImplementedError(f"平台 {self.name} 不支持平台任务: {task_type}")
+
     def execute_action(self, action_id: str, account: Account, params: dict) -> dict:
         """
         执行平台特定操作，返回 {"ok": bool, "data": any, "error": str}
@@ -92,10 +109,18 @@ class BasePlatform(ABC):
             return ProtocolExecutor(proxy=self.config.proxy)
         elif t == "headless":
             from .executors.playwright import PlaywrightExecutor
-            return PlaywrightExecutor(proxy=self.config.proxy, headless=True)
+            return PlaywrightExecutor(
+                proxy=self.config.proxy,
+                headless=True,
+                user_data_dir=self.config.user_data_dir,
+            )
         elif t == "headed":
             from .executors.playwright import PlaywrightExecutor
-            return PlaywrightExecutor(proxy=self.config.proxy, headless=False)
+            return PlaywrightExecutor(
+                proxy=self.config.proxy,
+                headless=False,
+                user_data_dir=self.config.user_data_dir,
+            )
         raise ValueError(f"未知执行器类型: {t}")
 
     def _make_captcha(self, **kwargs):

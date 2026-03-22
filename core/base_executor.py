@@ -41,6 +41,14 @@ class BaseExecutor(ABC):
     def close(self) -> None:
         ...
 
+    def get_context(self):
+        """浏览器执行器可覆盖，返回底层 context。"""
+        return None
+
+    def get_page(self):
+        """浏览器执行器可覆盖，返回当前主 page。"""
+        return None
+
     def __enter__(self):
         return self
 

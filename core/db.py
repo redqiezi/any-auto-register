@@ -8,6 +8,7 @@ import json
 def _utcnow():
     return datetime.now(timezone.utc)
 
+
 DATABASE_URL = "sqlite:///account_manager.db"
 engine = create_engine(DATABASE_URL)
 
@@ -25,7 +26,7 @@ class AccountModel(SQLModel, table=True):
     status: str = "registered"
     trial_end_time: int = 0
     cashier_url: str = ""
-    extra_json: str = "{}"   # JSON 存储平台自定义字段
+    extra_json: str = "{}"
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
 
@@ -42,7 +43,7 @@ class TaskLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     platform: str
     email: str
-    status: str        # success | failed
+    status: str
     error: str = ""
     detail_json: str = "{}"
     created_at: datetime = Field(default_factory=_utcnow)
@@ -58,6 +59,55 @@ class ProxyModel(SQLModel, table=True):
     fail_count: int = 0
     is_active: bool = True
     last_checked: Optional[datetime] = None
+
+
+class WalletModel(SQLModel, table=True):
+    __tablename__ = "wallets"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    provider: str = Field(index=True)
+    address: str = Field(index=True)
+    chain_id: str = ""
+    password: str = ""
+    secret_json: str = "{}"
+    status: str = "ready"
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)
+
+
+class BrowserProfileModel(SQLModel, table=True):
+    __tablename__ = "browser_profiles"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    wallet_id: Optional[int] = Field(default=None, index=True)
+    proxy: str = ""
+    browser_type: str = "chromium"
+    user_data_dir: str = ""
+    fingerprint_json: str = "{}"
+    extension_paths_json: str = "[]"
+    status: str = "ready"
+    last_used_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)
+
+
+class PlatformTaskModel(SQLModel, table=True):
+    __tablename__ = "platform_tasks"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    platform: str = Field(index=True)
+    task_type: str = Field(index=True)
+    profile_id: Optional[int] = Field(default=None, index=True)
+    wallet_id: Optional[int] = Field(default=None, index=True)
+    account_id: Optional[int] = Field(default=None, index=True)
+    status: str = Field(default="pending", index=True)
+    params_json: str = "{}"
+    result_json: str = "{}"
+    error: str = ""
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)
 
 
 def save_account(account) -> 'AccountModel':

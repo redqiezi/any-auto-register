@@ -1,14 +1,18 @@
-"""Playwright 执行器 - 支持 headless/headed 模式"""
+"""Playwright 执行器 - 支持 headless/headed 模式与持久 browser profile"""
 from ..base_executor import BaseExecutor, Response
 
 
 class PlaywrightExecutor(BaseExecutor):
-    def __init__(self, proxy: str = None, headless: bool = True):
+    def __init__(self, proxy: str = None, headless: bool = True,
+                 user_data_dir: str = None, extension_paths: list[str] = None):
         super().__init__(proxy)
         self.headless = headless
+        self.user_data_dir = user_data_dir
+        self.extension_paths = extension_paths or []
         self._browser = None
         self._context = None
         self._page = None
+        self._pw = None
         self._init()
 
     def _init(self):
@@ -17,9 +21,26 @@ class PlaywrightExecutor(BaseExecutor):
         launch_opts = {"headless": self.headless}
         if self.proxy:
             launch_opts["proxy"] = {"server": self.proxy}
-        self._browser = self._pw.chromium.launch(**launch_opts)
-        self._context = self._browser.new_context()
-        self._page = self._context.new_page()
+        browser_args = []
+        if self.extension_paths:
+            joined = ",".join(self.extension_paths)
+            browser_args.extend([
+                f"--disable-extensions-except={joined}",
+                f"--load-extension={joined}",
+            ])
+        if browser_args:
+            launch_opts["args"] = browser_args
+        if self.user_data_dir:
+            self._context = self._pw.chromium.launch_persistent_context(
+                self.user_data_dir,
+                **launch_opts,
+            )
+            self._page = self._context.pages[0] if self._context.pages else self._context.new_page()
+            self._browser = self._context.browser
+        else:
+            self._browser = self._pw.chromium.launch(**launch_opts)
+            self._context = self._browser.new_context()
+            self._page = self._context.new_page()
 
     def get(self, url, *, headers=None, params=None) -> Response:
         import urllib.parse
@@ -36,7 +57,8 @@ class PlaywrightExecutor(BaseExecutor):
         )
 
     def post(self, url, *, headers=None, params=None, data=None, json=None) -> Response:
-        import urllib.parse, json as _json
+        import urllib.parse
+        import json as _json
         if params:
             url = url + "?" + urllib.parse.urlencode(params)
         post_data = None
@@ -72,7 +94,18 @@ class PlaywrightExecutor(BaseExecutor):
             ])
 
     def close(self) -> None:
-        if self._browser:
+        if self._context:
+            self._context.close()
+            self._context = None
+        elif self._browser:
             self._browser.close()
+            self._browser = None
         if self._pw:
             self._pw.stop()
+            self._pw = None
+
+    def get_context(self):
+        return self._context
+
+    def get_page(self):
+        return self._page

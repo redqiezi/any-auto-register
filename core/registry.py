@@ -2,7 +2,7 @@
 import importlib
 import pkgutil
 from typing import Dict, Type
-from .base_platform import BasePlatform
+from .base_platform import BasePlatform, RegisterConfig
 
 _registry: Dict[str, Type[BasePlatform]] = {}
 
@@ -30,7 +30,14 @@ def get(name: str) -> Type[BasePlatform]:
 
 
 def list_platforms() -> list:
-    return [
-        {"name": cls.name, "display_name": cls.display_name, "version": cls.version}
-        for cls in _registry.values()
-    ]
+    items = []
+    for cls in _registry.values():
+        instance = cls(config=RegisterConfig())
+        items.append({
+            "name": cls.name,
+            "display_name": cls.display_name,
+            "version": cls.version,
+            "supports_wallet_login": instance.supports_wallet_login(),
+            "task_types": instance.get_supported_task_types(),
+        })
+    return items

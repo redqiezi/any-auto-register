@@ -13,6 +13,9 @@ from api.platforms import router as platforms_router
 from api.proxies import router as proxies_router
 from api.config import router as config_router
 from api.actions import router as actions_router
+from api.wallets import router as wallets_router
+from api.browser_profiles import router as browser_profiles_router
+from api.platform_tasks import router as platform_tasks_router
 
 
 @asynccontextmanager
@@ -48,6 +51,9 @@ app.include_router(platforms_router, prefix="/api")
 app.include_router(proxies_router, prefix="/api")
 app.include_router(config_router, prefix="/api")
 app.include_router(actions_router, prefix="/api")
+app.include_router(wallets_router, prefix="/api")
+app.include_router(browser_profiles_router, prefix="/api")
+app.include_router(platform_tasks_router, prefix="/api")
 
 
 @app.get("/api/solver/status")
